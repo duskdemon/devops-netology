@@ -5,8 +5,3 @@
 # indexing files. It's ".tf", "terraform", ".json" etc. files that are part of terraform sys, configs and logs.
 # new branch fix!
 # this file was edited in PyCharm IDE!
-# one more commit with PyCHarm IDE
-Links for homework 02-git-02-base are below
-https://github.com/duskdemon/devops-netology.git
-https://gitlab.com/duskdemon/devops-netology.git
-https://duskdemon@bitbucket.org/duskdemon/devops-netology.git
