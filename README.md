@@ -7,4 +7,4 @@
 Links for homework 02-git-02-base are below
 https://github.com/duskdemon/devops-netology.git
 https://gitlab.com/duskdemon/devops-netology.git
-https://duskdemon@bitbucket.org/duskdemon/devops-netology.git
+https://duskdemon@bitbucket.org/duskdemon/devops-netology.git 
