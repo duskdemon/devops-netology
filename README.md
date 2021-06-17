@@ -1,78 +1,186 @@
 #devops-netology
-03-sysadmin-04-os
+03-sysadmin-05-fs
 
-1. На лекции мы познакомились с node_exporter. В демонстрации его исполняемый файл запускался в background. Этого достаточно для демо, но не для настоящей production-системы, где процессы должны находиться под внешним управлением. Используя знания из лекции по systemd, создайте самостоятельно простой unit-файл для node_exporter:
+1. Узнайте о sparse (разряженных) файлах.
 
-поместите его в автозагрузку,
-предусмотрите возможность добавления опций к запускаемому процессу через внешний файл (посмотрите, например, на systemctl cat cron),
-удостоверьтесь, что с помощью systemctl процесс корректно стартует, завершается, а после перезагрузки автоматически поднимается.
+Ответ: Разрежённый файл (англ. sparse file) — файл, в котором последовательности нулевых байтов заменены на информацию об этих последовательностях (список дыр).
 
-Ответ: Установка node_exporter:
-Создаем пользователя - sudo useradd node_exporter -s /sbin/nologin;
-забираем при помощи wget, разархивируем, копируем в /usr/sbin;
-создаем файл /etc/systemd/system/node_exporter.service:
+2. Могут ли файлы, являющиеся жесткой ссылкой на один объект, иметь разные права доступа и владельца? Почему?
 
-[Unit]
-Description=Node Exporter
+Ответ: Нет, т.к. это жесткая ссылка. Ссылка всего-лишь указывает на объект. Если у объекта сменить права доступа или владельца, то все ссылки, указывающие на него сответственно покажут одни и те же права.
 
-[Service]
-User=node_exporter
-EnvironmentFile=/etc/sysconfig/node_exporter
-ExecStart=/usr/sbin/node_exporter-1.1.2.linux-amd64/node_exporter $OPTIONS
+3. Сделайте vagrant destroy на имеющийся инстанс Ubuntu. Замените содержимое Vagrantfile следующим:
 
-[Install]
-WantedBy=multi-user.target
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-20.04"
+  config.vm.provider :virtualbox do |vb|
+    lvm_experiments_disk0_path = "/tmp/lvm_experiments_disk0.vmdk"
+    lvm_experiments_disk1_path = "/tmp/lvm_experiments_disk1.vmdk"
+    vb.customize ['createmedium', '--filename', lvm_experiments_disk0_path, '--size', 2560]
+    vb.customize ['createmedium', '--filename', lvm_experiments_disk1_path, '--size', 2560]
+    vb.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', lvm_experiments_disk0_path]
+    vb.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 2, '--device', 0, '--type', 'hdd', '--medium', lvm_experiments_disk1_path]
+  end
+end
+Данная конфигурация создаст новую виртуальную машину с двумя дополнительными неразмеченными дисками по 2.5 Гб.
 
-создаем каталог и файл /etc/sysconfig/node_exporter и прописываем в него опции.
-Далее sudo systemctl daemon-reload, sudo systemctl enable node_exporter.
-curl http://localhost:9100/metrics - информация доступна по метрикам здесь.
+Ответ: выполнено.
 
-2. Ознакомьтесь с опциями node_exporter и выводом /metrics по-умолчанию. Приведите несколько опций, которые вы бы выбрали для базового мониторинга хоста по CPU, памяти, диску и сети.
+4. Используя fdisk, разбейте первый диск на 2 раздела: 2 Гб, оставшееся пространство.
 
-Ответ: Стандартные коллекторы: cpu, diskstats, filesystem, hwmon, meminfo, netstat.
+Ответ: после работы в выводе fdisk -l получилось:
+Device     Boot   Start     End Sectors  Size Id Type
+/dev/sdb1          2048 4196351 4194304    2G 83 Linux
+/dev/sdb2       4196352 5242879 1046528  511M 83 Linux
 
-3. Установите в свою виртуальную машину Netdata. Воспользуйтесь готовыми пакетами для установки (sudo apt install -y netdata). После успешной установки:
+5. Используя sfdisk, перенесите данную таблицу разделов на второй диск.
 
-в конфигурационном файле /etc/netdata/netdata.conf в секции [web] замените значение с localhost на bind to = 0.0.0.0,
-добавьте в Vagrantfile проброс порта Netdata на свой локальный компьютер и сделайте vagrant reload:
-config.vm.network "forwarded_port", guest: 19999, host: 19999
-После успешной перезагрузки в браузере на своем ПК (не в виртуальной машине) вы должны суметь зайти на localhost:19999. Ознакомьтесь с метриками, которые по умолчанию собираются Netdata и с комментариями, которые даны к этим метрикам.
+Ответ: используя O и I записал и загрузил скрипт-файл для /dev/sdc. После работы в выводе fdisk -l получилось:
+Device     Boot   Start     End Sectors  Size Id Type
+/dev/sdc1          2048 4196351 4194304    2G 83 Linux
+/dev/sdc2       4196352 5242879 1046528  511M 83 Linux
 
-Ответ: после установки по инструкции изменил в netdata.conf строку в [global] на такую: bind socket to IP = 0.0.0.0 . после проброса порта 19999 через вагрант, стала доступна страница со статистикой netdata в хост-системе. Скриншот прилагаю
+6. Соберите mdadm RAID1 на паре разделов 2 Гб.
 
-4. Можно ли по выводу dmesg понять, осознает ли ОС, что загружена не на настоящем оборудовании, а на системе виртуализации?
+Ответ: вывод lsblk
+sdb                    8:16   0  2.5G  0 disk
+├─sdb1                 8:17   0    2G  0 part
+│ └─md0                9:0    0    2G  0 raid1
+└─sdb2                 8:18   0  511M  0 part
+sdc                    8:32   0  2.5G  0 disk
+├─sdc1                 8:33   0    2G  0 part
+│ └─md0                9:0    0    2G  0 raid1
+└─sdc2                 8:34   0  511M  0 part
 
-Ответ: dmesg | grep virtual
-[    0.007849] CPU MTRRs all blank - virtualized system.
+7. Соберите mdadm RAID0 на второй паре маленьких разделов.
 
-5. Как настроен sysctl fs.nr_open на системе по-умолчанию? Узнайте, что означает этот параметр. Какой другой существующий лимит не позволит достичь такого числа (ulimit --help)?
+Ответ: вывод lsblk
+sdb                    8:16   0  2.5G  0 disk
+├─sdb1                 8:17   0    2G  0 part
+│ └─md0                9:0    0    2G  0 raid1
+└─sdb2                 8:18   0  511M  0 part
+  └─md1                9:1    0 1018M  0 raid0
+sdc                    8:32   0  2.5G  0 disk
+├─sdc1                 8:33   0    2G  0 part
+│ └─md0                9:0    0    2G  0 raid1
+└─sdc2                 8:34   0  511M  0 part
+  └─md1                9:1    0 1018M  0 raid0
 
-Ответ: По-умолчанию лимит на количество открытых файлов:
-/sbin/sysctl -n fs.nr_open = 1048576.
-ulimit -n 1024; ulimit -n -H 1048576. 
+8. Создайте 2 независимых PV на получившихся md-устройствах.
 
-6. Запустите любой долгоживущий процесс (не ls, который отработает мгновенно, а, например, sleep 1h) в отдельном неймспейсе процессов; покажите, что ваш процесс работает под PID 1 через nsenter. Для простоты работайте в данном задании под root (sudo -i). Под обычным пользователем требуются дополнительные опции (--map-root-user) и т.д.
+Ответ: вывод sudo pvscan после создания (pvcreate)
+  PV /dev/sda5   VG vgvagrant       lvm2 [<63.50 GiB / 0    free]
+  PV /dev/md0                       lvm2 [<2.00 GiB]
+  PV /dev/md1                       lvm2 [1018.00 MiB]
+  Total: 3 [<66.49 GiB] / in use: 1 [<63.50 GiB] / in no VG: 2 [2.99 GiB]
+
+9. Создайте общую volume-group на этих двух PV.
+
+Ответ: sudo vgcreate vgr_01 /dev/md0 /dev/md1 Вывод sudo pvscan:
+PV /dev/sda5   VG vgvagrant       lvm2 [<63.50 GiB / 0    free]
+  PV /dev/md0    VG vgr_01          lvm2 [<2.00 GiB / <2.00 GiB free]
+  PV /dev/md1    VG vgr_01          lvm2 [1016.00 MiB / 1016.00 MiB free]
+  Total: 3 [66.48 GiB] / in use: 3 [66.48 GiB] / in no VG: 0 [0   ]
+
+10. Создайте LV размером 100 Мб, указав его расположение на PV с RAID0.
+
+Ответ: sudo lvcreate -L 100M -n logvol1 vgr_01 /dev/md1, вывод lvscan:
+ ACTIVE            '/dev/vgvagrant/root' [<62.54 GiB] inherit
+  ACTIVE            '/dev/vgvagrant/swap_1' [980.00 MiB] inherit
+  ACTIVE            '/dev/vgr_01/logvol1' [100.00 MiB] inherit
+
+11. Создайте mkfs.ext4 ФС на получившемся LV.
+
+Ответ:sudo mkfs.ext4 /dev/vgr_01/logvol1, вывод:
+mke2fs 1.45.5 (07-Jan-2020)
+Creating filesystem with 25600 4k blocks and 25600 inodes
+
+Allocating group tables: done
+Writing inode tables: done
+Creating journal (1024 blocks): done
+Writing superblocks and filesystem accounting information: done
+
+12. Смонтируйте этот раздел в любую директорию, например, /tmp/new.
+
+Ответ:sudo mkdir /mnt/lv1, sudo mount /dev/vgr_01/logvol1 /mnt/lv1/.
+
+13. Поместите туда тестовый файл, например wget https://mirror.yandex.ru/ubuntu/ls-lR.gz -O /tmp/new/test.gz.
+
+Ответ: sudo wget https://mirror.yandex.ru/ubuntu/ls-lR.gz -O testfile.gz
+
+14. Прикрепите вывод lsblk.
 
 Ответ:
-root@vagrant:~# ushare -f --pid --mount-proc sleep 30m
-bash: ushare: command not found
-root@vagrant:~# unshare -f --pid --mount-proc sleep 30m
-^Z
-[1]+  Stopped                 unshare -f --pid --mount-proc sleep 30m
-root@vagrant:~# ps -a | grep sleep
-   1892 pts/1    00:00:00 sleep
-root@vagrant:~# sudo -i
-root@vagrant:~# nsenter --target 1892 --pid --mount
-root@vagrant:/# ps -aux
-USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-root           1  0.0  0.0   8076   528 pts/1    S    08:12   0:00 sleep 30m
-root           2  0.0  0.3   9836  3968 pts/1    S    08:14   0:00 -bash
-root          11  0.0  0.3  11680  3616 pts/1    R+   08:14   0:00 ps -aux
-root@vagrant:/#
+NAME                 MAJ:MIN RM  SIZE RO TYPE  MOUNTPOINT
+sda                    8:0    0   64G  0 disk
+├─sda1                 8:1    0  512M  0 part  /boot/efi
+├─sda2                 8:2    0    1K  0 part
+└─sda5                 8:5    0 63.5G  0 part
+  ├─vgvagrant-root   253:0    0 62.6G  0 lvm   /
+  └─vgvagrant-swap_1 253:1    0  980M  0 lvm   [SWAP]
+sdb                    8:16   0  2.5G  0 disk
+├─sdb1                 8:17   0    2G  0 part
+│ └─md0                9:0    0    2G  0 raid1
+└─sdb2                 8:18   0  511M  0 part
+  └─md1                9:1    0 1018M  0 raid0
+    └─vgr_01-logvol1 253:2    0  100M  0 lvm   /mnt/lv1
+sdc                    8:32   0  2.5G  0 disk
+├─sdc1                 8:33   0    2G  0 part
+│ └─md0                9:0    0    2G  0 raid1
+└─sdc2                 8:34   0  511M  0 part
+  └─md1                9:1    0 1018M  0 raid0
+    └─vgr_01-logvol1 253:2    0  100M  0 lvm   /mnt/lv1
 
-7. Найдите информацию о том, что такое :(){ :|:& };:. Запустите эту команду в своей виртуальной машине Vagrant с Ubuntu 20.04 (это важно, поведение в других ОС не проверялось). Некоторое время все будет "плохо", после чего (минуты) – ОС должна стабилизироваться. Вызов dmesg расскажет, какой механизм помог автоматической стабилизации. Как настроен этот механизм по-умолчанию, и как изменить число процессов, которое можно создать в сессии?
+15. Протестируйте целостность файла:
 
-Ответ: Через некоторое время после запуска получил множественные сообщения вида
--bash: fork: Resource temporarily unavailable. В выводе dmesg нашлось:
-cgroup: fork rejected by pids controller in /user.slice/user-1000.slice/session-4.scope
-При помощи cgroups можно ограничить количество создаваемых процессов, при помощи контроллера CONFIG_CGROUP_PIDS. 
+root@vagrant:~# gzip -t /tmp/new/test.gz
+root@vagrant:~# echo $?
+0
+
+Ответ:vagrant@vagrant:/mnt/lv1$ gzip -t testfile.gz
+vagrant@vagrant:/mnt/lv1$ echo $?
+0
+
+16. Используя pvmove, переместите содержимое PV с RAID0 на RAID1.
+
+Ответ:
+vagrant@vagrant:/mnt/lv1$ sudo pvmove /dev/md1 /dev/md0
+  /dev/md1: Moved: 16.00%
+  /dev/md1: Moved: 100.00%
+vagrant@vagrant:/mnt/lv1$ sudo pvscan
+  PV /dev/sda5   VG vgvagrant       lvm2 [<63.50 GiB / 0    free]
+  PV /dev/md0    VG vgr_01          lvm2 [<2.00 GiB / <1.90 GiB free]
+  PV /dev/md1    VG vgr_01          lvm2 [1016.00 MiB / 1016.00 MiB free]
+  Total: 3 [66.48 GiB] / in use: 3 [66.48 GiB] / in no VG: 0 [0   ]
+
+17. Сделайте --fail на устройство в вашем RAID1 md.
+
+Ответ:
+vagrant@vagrant:/$ sudo mdadm --fail /dev/md0 /dev/sdb1
+mdadm: set /dev/sdb1 faulty in /dev/md0
+
+18. Подтвердите выводом dmesg, что RAID1 работает в деградированном состоянии.
+
+Ответ:вывод dmesg:
+[ 7357.991863] md/raid1:md0: Disk failure on sdb1, disabling device.
+               md/raid1:md0: Operation continuing on 1 devices.
+
+19. Протестируйте целостность файла, несмотря на "сбойный" диск он должен продолжать быть доступен:
+
+root@vagrant:~# gzip -t /tmp/new/test.gz
+root@vagrant:~# echo $?
+0
+
+Ответ:
+vagrant@vagrant:/$ gzip -t /mnt/lv1/testfile.gz
+vagrant@vagrant:/$ echo $?
+0
+
+20. Погасите тестовый хост, vagrant destroy. 
+
+Ответ:
+PS C:\Users\Dusk\vagrant> vagrant destroy
+    default: Are you sure you want to destroy the 'default' VM? [y/N] y
+==> default: Forcing shutdown of VM...
+==> default: Destroying VM and associated drives...
+PS C:\Users\Dusk\vagrant>
