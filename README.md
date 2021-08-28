@@ -1,97 +1,120 @@
 #devops-netology
-# 04-script-01-bash
-
+# 04-script-02-py
 1. Есть скрипт:
-```bash 
-a=1
-b=2
-c=a+b
-d=$a+$b
-e=$(($a+$b))
-```
-* Какие значения переменным c,d,e будут присвоены? 
-* Почему?
-**Ответ:** c будет a+b, т.к. переменной присвоена строка; d будет 1+2, т.к. опять же строка, с определенными переменными со значением 1 и 2 и + между ними; в случае с e будут произведены вычисления с резульатом "3", т.к. на это указывает синтаксис.
-
-2. На нашем локальном сервере упал сервис и мы написали скрипт, который постоянно проверяет его доступность, записывая дату проверок до тех пор, пока сервис не станет доступным. В скрипте допущена ошибка, из-за которой выполнение не может завершиться, при этом место на Жёстком Диске постоянно уменьшается. Что необходимо сделать, чтобы его исправить:
-```bash
-	while ((1==1)
-	do
-	curl https://localhost:4757
-	if (($? != 0))
-	then
-	date >> curl.log
-	fi
-	done
-```
-**Ответ:** пропущена скобка ) где условие while, должно быть while ((1==1));
-нужно добавить условие выхода из цикла при успешной проверке - break 2;
-также можно добавить таймаут проверки - sleep 60; скрипт будет такой:
-```bash
-while ((1==1))
-do
-curl https://localhost:4757
-if (($? != 0))
-then
-date >> curles.log
-else
-break 2
-fi
-sleep 60
-done
-```
-3. Необходимо написать скрипт, который проверяет доступность трёх IP: 192.168.0.1, 173.194.222.113, 87.250.250.242 по 80 порту и записывает результат в файл log. Проверять доступность необходимо пять раз для каждого узла.
+	```python
+    #!/usr/bin/env python3
+	a = 1
+	b = '2'
+	c = a + b
+	```
+	* Какое значение будет присвоено переменной c?
+	* Как получить для переменной c значение 12?
+	* Как получить для переменной c значение 3?
 **Ответ:**
-```bash
-#!/bin/bash
-srv=(192.168.0.1 173.194.222.113 87.250.250.242)
-if [ -f hosts.log]
-then
-        echo "deleting log file"
-        rm hosts.log
-else
-        echo "no log file, working"
-fi
-for i in {1...5}
-do
-        for s in ${srv[@]}
-        do
-                a=$(date)
-                curl --connect-timeout 1 $s:80
-                if (($?==0))
-                                then
-                                        x=0
-                                else
-                                        x=error
-                fi
-                        echo $a $s status=$x >>hosts.log
-        done
-done
+Не складывается, т.к. переменные разных типов:
+```
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+TypeError: unsupported operand type(s) for +: 'int' and 'str'
+```
+Чтобы получить 12, преобразуем переменную *a* в тип *string*:
+```
+>>> a =str(a)
+>>> a
+'1'
+>>> c = a + b
+>>> c
+'12'
+```
+Чтобы получить 3, нужно обе складываемые переменные преобразовать в *integer*:
+```
+a = int(a)
+b = int(b)
+>>> c = a + b
+>>> c
+3
+```
+2. Мы устроились на работу в компанию, где раньше уже был DevOps Engineer. Он написал скрипт, позволяющий узнать, какие файлы модифицированы в репозитории, относительно локальных изменений. Этим скриптом недовольно начальство, потому что в его выводе есть не все изменённые файлы, а также непонятен полный путь к директории, где они находятся. Как можно доработать скрипт ниже, чтобы он исполнял требования вашего руководителя?
+
+	```python
+    #!/usr/bin/env python3
+
+    import os
+
+	bash_command = ["cd ~/netology/sysadm-homeworks", "git status"]
+	result_os = os.popen(' && '.join(bash_command)).read()
+    is_change = False
+	for result in result_os.split('\n'):
+        if result.find('modified') != -1:
+            prepare_result = result.replace('\tmodified:   ', '')
+            print(prepare_result)
+            break
+
+	```
+**Ответ:**
+```python
+#!/usr/bin python3
+
+import os
+path='/home/vagrant/devops-netology'
+
+bash_command = ["cd " +path, "git status"]
+result_os = os.popen(' && '.join(bash_command)).read()
+#is_change = False
+for result in result_os.split('\n'):
+    if result.find('modified') != -1:
+        prepare_result = result.replace('\tmodified:   ', '')
+        separator='/'
+        out=path+separator+prepare_result
+        print(out)
+```
+получилось так:
+```python
+vagrant@vagrant:~/devops-netology$ python3 check_ch01.py
+/home/vagrant/devops-netology/testfile1
 ```
 
-4. Необходимо дописать скрипт из предыдущего задания так, чтобы он выполнялся до тех пор, пока один из узлов не окажется недоступным. Если любой из узлов недоступен - IP этого узла пишется в файл error, скрипт прерывается
+3. Доработать скрипт выше так, чтобы он мог проверять не только локальный репозиторий в текущей директории, а также умел воспринимать путь к репозиторию, который мы передаём как входной параметр. Мы точно знаем, что начальство коварное и будет проверять работу этого скрипта в директориях, которые не являются локальными репозиториями.
+
 **Ответ:**
-```bash
-#!/bin/bash
-srv=(192.168.0.1 173.194.222.113 87.250.250.242)
-if [ -f hosts2.log ]
-then
-        echo "Removing old log"
-        rm hosts2.log
-else
-        echo "No log file, continue"
-fi
-while ((1 == 1))
-do
-    for s in ${srv[@]}
-    do
-        curl -Is --connect-timeout 2 $s:80
-        if (($? !=0))
-        then
-                a=$(date)
-                echo $a $s " is not reachable" >>hosts2.log
-                break 3
-        fi
-    done
-done
+```python
+#!/usr/bin python3
+
+import os
+import sys
+path = os.getcwd()
+
+bash_command = ["cd " +path, "git status"]
+result_os = os.popen(' && '.join(bash_command)).read()
+for result in result_os.split('\n'):
+    if result.find('modified') != -1:
+        prepare_result = result.replace('\tmodified:   ', '')
+        separator='/'
+        out=path+separator+prepare_result
+        print(out)
+```
+4. Наша команда разрабатывает несколько веб-сервисов, доступных по http. Мы точно знаем, что на их стенде нет никакой балансировки, кластеризации, за DNS прячется конкретный IP сервера, где установлен сервис. Проблема в том, что отдел, занимающийся нашей инфраструктурой очень часто меняет нам сервера, поэтому IP меняются примерно раз в неделю, при этом сервисы сохраняют за собой DNS имена. Это бы совсем никого не беспокоило, если бы несколько раз сервера не уезжали в такой сегмент сети нашей компании, который недоступен для разработчиков. Мы хотим написать скрипт, который опрашивает веб-сервисы, получает их IP, выводит информацию в стандартный вывод в виде: <URL сервиса> - <его IP>. Также, должна быть реализована возможность проверки текущего IP сервиса c его IP из предыдущей проверки. Если проверка будет провалена - оповестить об этом в стандартный вывод сообщением: [ERROR] <URL сервиса> IP mismatch: <старый IP> <Новый IP>. Будем считать, что наша разработка реализовала сервисы: drive.google.com, mail.google.com, google.com.
+
+**Ответ:**
+```python
+#!/usr/bin/env python3
+
+import os
+import socket
+import datetime
+import time
+
+i = 1
+
+servers = {'drive.google.com':'111.111.111.111', 'mail.google.com':'222.222.222.222', 'google.com':'333.333.333.333'}
+
+while 1 == 1:
+  for host in servers:
+    ip = socket.gethostbyname(host)
+    if ip != servers[host]:
+        print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +' [ERR] ' + str(host) +' wrong IP: '+servers[host]+' '+ip)
+        servers[host] = ip
+
+  i+=1
+  time.sleep(10)
 ```
