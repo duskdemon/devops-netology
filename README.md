@@ -1,211 +1,379 @@
 #devops-netology
-### 05-virt-04-docker-practical-skills
-#### Задача 1 
-В данном задании вы научитесь изменять существующие Dockerfile, адаптируя их под нужный инфраструктурный стек.
+# 06-db-02-sql
+## Задача 1
 
-Измените базовый образ предложенного Dockerfile на Arch Linux c сохранением его функциональности.
+Используя docker поднимите инстанс PostgreSQL (версию 12) c 2 volume, 
+в который будут складываться данные БД и бэкапы.
+
+Приведите получившуюся команду или docker-compose манифест.  
+**Ответ:**
+
+Забираем из докер-хаба образ postgresql:  
 ```
-FROM ubuntu:latest
-
-RUN apt-get update && \
-    apt-get install -y software-properties-common && \
-    add-apt-repository ppa:vincent-c/ponysay && \
-    apt-get update
- 
-RUN apt-get install -y ponysay
-
-ENTRYPOINT ["/usr/bin/ponysay"]
-CMD ["Hey, netology”]
+docker pull postgresql:12  
 ```
-Для получения зачета, вам необходимо предоставить:
-
-* Написанный вами Dockerfile
-* Скриншот вывода командной строки после запуска контейнера из вашего базового образа
-* Ссылку на образ в вашем хранилище docker-hub
-
-**Ответ**
-Докер-файл:
+создаем 2 тома:  
 ```
-FROM archlinux:latest
+docker volume create 6-2-sql-0  
+docker volume create 6-2-sql-1  
+```
+Запускаем контейнер, монтируем тома:  
+```
+docker run -name=psql-12-1 -ti -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pass -p 5432:5432 -v 6-2-sql-0:/var/lib/postgresql -v 6-2-sql-1:/var/lib/postgresql/data 
+postgres:12
+```
 
-RUN pacman -Sy --noconfirm && \
-    pacman -S --noconfirm ponysay
+## Задача 2
+
+В БД из задачи 1: 
+- создайте пользователя test-admin-user и БД test_db
+- в БД test_db создайте таблицу orders и clients (спeцификация таблиц ниже)
+- предоставьте привилегии на все операции пользователю test-admin-user на таблицы БД test_db
+- создайте пользователя test-simple-user  
+- предоставьте пользователю test-simple-user права на SELECT/INSERT/UPDATE/DELETE данных таблиц БД test_db
+
+Таблица orders:
+- id (serial primary key)
+- наименование (string)
+- цена (integer)
+
+Таблица clients:
+- id (serial primary key)
+- фамилия (string)
+- страна проживания (string, index)
+- заказ (foreign key orders)
+
+Приведите:
+- итоговый список БД после выполнения пунктов выше,
+- описание таблиц (describe)
+- SQL-запрос для выдачи списка пользователей с правами над таблицами test_db
+- список пользователей с правами над таблицами test_db  
+
+**Ответ:**  
+root@44a279e4af7e:/# createuser test-admin-user -U user  
+root@44a279e4af7e:/# createuser test-simple-user -U user  
+root@44a279e4af7e:/# createdb -U user test_db  
+
+CREATE TABLE orders(
+	id	serial PRIMARY KEY,  
+	ordername	varchar(24) NOT NULL,  
+	price	integer NOT NULL  
+	);
 	
-ENTRYPOINT ["/usr/bin/ponysay"]
-CMD ["Hey, netology"]
+CREATE TABLE clients(
+	id	integer PRIMARY KEY,
+	lastname	varchar(24) NOT NULL,
+	country	varchar(24) NOT NULL,
+    	ord integer REFERENCES orders(id)
+	);
+
+CREATE INDEX order_index ON clients (ord);  
+
+grant all on orders to "test-admin-user";  
+grant all on clients to "test-admin-user";  
+grant SELECT,INSERT,UPDATE,DELETE on orders to "test-simple-user";  
+grant SELECT,INSERT,UPDATE,DELETE on clients to "test-simple-user";  
+```
+test_db=# \l
+                             List of databases
+   Name    | Owner | Encoding |  Collate   |   Ctype    | Access privileges
+-----------+-------+----------+------------+------------+-------------------
+ postgres  | user  | UTF8     | en_US.utf8 | en_US.utf8 |
+ template0 | user  | UTF8     | en_US.utf8 | en_US.utf8 | =c/user          +
+           |       |          |            |            | user=CTc/user
+ template1 | user  | UTF8     | en_US.utf8 | en_US.utf8 | =c/user          +
+           |       |          |            |            | user=CTc/user
+ test_db   | user  | UTF8     | en_US.utf8 | en_US.utf8 |
+ user      | user  | UTF8     | en_US.utf8 | en_US.utf8 |
+(5 rows)
+```
+```
+test_db=# \d orders
+                                     Table "public.orders"
+  Column   |         Type          | Collation | Nullable |              Default
+-----------+-----------------------+-----------+----------+------------------------------------
+ id        | integer               |           | not null | nextval('orders_id_seq'::regclass)
+ ordername | character varying(24) |           | not null |
+ price     | integer               |           | not null |
+Indexes:
+    "orders_pkey" PRIMARY KEY, btree (id)
+Referenced by:
+    TABLE "clients" CONSTRAINT "clients_ord_fkey" FOREIGN KEY (ord) REFERENCES orders(id)
+```
+```
+test_db=# \d clients
+                      Table "public.clients"
+  Column  |         Type          | Collation | Nullable | Default
+----------+-----------------------+-----------+----------+---------
+ id       | integer               |           | not null |
+ lastname | character varying(24) |           | not null |
+ country  | character varying(24) |           | not null |
+ ord      | integer               |           |          |
+Indexes:
+    "clients_pkey" PRIMARY KEY, btree (id)
+    "order_index" btree (ord)
+Foreign-key constraints:
+    "clients_ord_fkey" FOREIGN KEY (ord) REFERENCES orders(id)
+```
+```
+test_db=# SELECT grantee, privilege_type
+FROM information_schema.role_table_grants
+WHERE table_name='orders';
+     grantee      | privilege_type
+------------------+----------------
+ user             | INSERT
+ user             | SELECT
+ user             | UPDATE
+ user             | DELETE
+ user             | TRUNCATE
+ user             | REFERENCES
+ user             | TRIGGER
+ test-admin-user  | INSERT
+ test-admin-user  | SELECT
+ test-admin-user  | UPDATE
+ test-admin-user  | DELETE
+ test-admin-user  | TRUNCATE
+ test-admin-user  | REFERENCES
+ test-admin-user  | TRIGGER
+ test-simple-user | INSERT
+ test-simple-user | SELECT
+ test-simple-user | UPDATE
+ test-simple-user | DELETE
+(18 rows)
+```
+```
+test_db=# SELECT grantee, privilege_type
+FROM information_schema.role_table_grants
+WHERE table_name='clients';
+     grantee      | privilege_type
+------------------+----------------
+ user             | INSERT
+ user             | SELECT
+ user             | UPDATE
+ user             | DELETE
+ user             | TRUNCATE
+ user             | REFERENCES
+ user             | TRIGGER
+ test-admin-user  | INSERT
+ test-admin-user  | SELECT
+ test-admin-user  | UPDATE
+ test-admin-user  | DELETE
+ test-admin-user  | TRUNCATE
+ test-admin-user  | REFERENCES
+ test-admin-user  | TRIGGER
+ test-simple-user | INSERT
+ test-simple-user | SELECT
+ test-simple-user | UPDATE
+ test-simple-user | DELETE
+(18 rows)
+```
+## Задача 3
+
+Используя SQL синтаксис - наполните таблицы следующими тестовыми данными:
+
+Таблица orders
+
+|Наименование|цена|
+|------------|----|
+|Шоколад| 10 |
+|Принтер| 3000 |
+|Книга| 500 |
+|Монитор| 7000|
+|Гитара| 4000|
+
+Таблица clients
+
+|ФИО|Страна проживания|
+|------------|----|
+|Иванов Иван Иванович| USA |
+|Петров Петр Петрович| Canada |
+|Иоганн Себастьян Бах| Japan |
+|Ронни Джеймс Дио| Russia|
+|Ritchie Blackmore| Russia|
+
+Используя SQL синтаксис:
+- вычислите количество записей для каждой таблицы 
+- приведите в ответе:
+    - запросы 
+    - результаты их выполнения.
+
+**Ответ:**
+```
+test_db=# insert into orders VALUES (1, 'Шоколад', 10), (2, 'Принтер', 3000), (3, 'Книга', 500), (4, 'Монитор', 7000), (5, 'Гитара', 4000);
+INSERT 0 5
+test_db=# insert into clients VALUES (1, 'Иванов Иван Иванович', 'США'), (2,'Петров Петр Петрович', 'Канада'), (3,'Иоганн Себастьян Бах','Япония'), (4, 'Ронни Джеймс Дио', 'Россия'), (5,'Ritchie Blackmore', 'Россия');
+INSERT 0 5
+```
+```
+test_db=# select count (*) from orders;
+ count
+-------
+     5
+(1 row)
+
+test_db=# select count (*) from clients;
+ count
+-------
+     5
+(1 row)
 ```
 
-docker:
 
-docker pull duskdemon/duskdemon:homework-5-4
+## Задача 4
 
-ссыылка на картинку:
+Часть пользователей из таблицы clients решили оформить заказы из таблицы orders.
 
-https://github.com/duskdemon/devops-netology/blob/main/ponee.jpg
+Используя foreign keys свяжите записи из таблиц, согласно таблице:
 
-#### Задача 2
-В данной задаче вы составите несколько разных Dockerfile для проекта Jenkins, опубликуем образ в dockerhub.io и посмотрим логи этих контейнеров.
+|ФИО|Заказ|
+|------------|----|
+|Иванов Иван Иванович| Книга |
+|Петров Петр Петрович| Монитор |
+|Иоганн Себастьян Бах| Гитара |
 
-###### * Составьте 2 Dockerfile:
+Приведите SQL-запросы для выполнения данных операций.
 
-###### Общие моменты:
-* Образ должен запускать Jenkins server
-###### Спецификация первого образа:
-* Базовый образ - amazoncorreto
-* Присвоить образу тэг ver1
-###### Спецификация второго образа:
-* Базовый образ - ubuntu:latest
-* Присвоить образу тэг ver2  
-##### 
-###### * Соберите 2 образа по полученным Dockerfile
-###### * Запустите и проверьте их работоспособность
-###### * Опубликуйте образы в своём dockerhub.io хранилище
+Приведите SQL-запрос для выдачи всех пользователей, которые совершили заказ, а также вывод данного запроса.
+ 
+Подсказк - используйте директиву `UPDATE`.
 
-Для получения зачета, вам необходимо предоставить:
-
-* Наполнения 2х Dockerfile из задания
-* Скриншоты логов запущенных вами контейнеров (из командной строки)
-* Скриншоты веб-интерфейса Jenkins запущенных вами контейнеров (достаточно 1 скриншота на контейнер)
-* Ссылки на образы в вашем хранилище docker-hub
-
-**Ответ**
-
-docker pull amazoncorretto:latest  
-docker pull ubuntu:latest  
-
-docker build -t duskdemon/duskdemon:ver1 -f a_ver1 .  
-docker run -p 8085:8080 -p 50005:50000 -w /usr/lib/jenkins/ -i -t duskdemon/duskdemon:ver1 java -jar jenkins.war  
-
-docker build -t duskdemon/duskdemon:ver2 -f u_ver2 .  
-docker run -p 8086:8080 -p 50006:50000 -w /usr/share/jenkins/ -i -t duskdemon/duskdemon:ver2 java -jar jenkins.war  
-
-##### докер-файлы: a_ver1, u_ver2
+**Ответ:**
 ```
-FROM amazoncorretto
-
-RUN yum install wget -y
-RUN wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
-RUN rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
-RUN amazon-linux-extras install epel -y
-RUN yum install java-11-amazon-corretto-devel.x86_64 jenkins update -y
-CMD ["/bin/bash"]
+test_db=# update  clients set ord = 3 where id = 1;
+UPDATE 1
+test_db=# update  clients set ord = 4 where id = 2;
+UPDATE 1
+test_db=# update  clients set ord = 5 where id = 3;
+UPDATE 1
 ```
+```
+test_db=# select * from clients where ord is not NULL;
+ id |       lastname       | country | ord
+----+----------------------+---------+-----
+  1 | Иванов Иван Иванович | США     |   3
+  2 | Петров Петр Петрович | Канада  |   4
+  3 | Иоганн Себастьян Бах | Япония  |   5
+(3 rows)
+```
+## Задача 5
+
+Получите полную информацию по выполнению запроса выдачи всех пользователей из задачи 4 
+(используя директиву EXPLAIN).
+
+Приведите получившийся результат и объясните что значат полученные значения.  
+**Ответ:**
 
 ```
-FROM ubuntu
-
-ENV TZ=Europe/Moscow
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN apt-get update && apt-get install tzdata && apt-get install wget -y && apt-get install gnupg -y
-RUN wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | apt-key add -
-RUN echo "deb https://pkg.jenkins.io/debian-stable binary/" > /etc/apt/sources.list.d/jenkins.list
-RUN apt-get update && apt-get install openjdk-11-jdk -y && apt-get install jenkins -y 
-CMD ["/bin/bash"]
+test_db=# explain select * from clients where ord is not null;
+                         QUERY PLAN
+------------------------------------------------------------
+ Seq Scan on clients  (cost=0.00..14.80 rows=478 width=140)
+   Filter: (ord IS NOT NULL)
+(2 rows)
 ```
-##### ссылки на скриншоты: 
+получаем статистику запроса - время для отработки и число обработанных запросом строк.
 
-Логи:  
-Амазонкорретто https://github.com/duskdemon/devops-netology/blob/main/amazon-jenkins01.jpg  
-Убунту https://github.com/duskdemon/devops-netology/blob/main/ubuntu-jenkins01.jpg  
+## Задача 6
 
-Веб-страницы:  
-Амазонкорретто https://github.com/duskdemon/devops-netology/blob/main/amazon-jenkins02.jpg  
-Убунту https://github.com/duskdemon/devops-netology/blob/main/ubuntu-jenkins02.jpg  
+Создайте бэкап БД test_db и поместите его в volume, предназначенный для бэкапов (см. Задачу 1).
 
-##### ссылки на репозиторий докер-хаб:  
+Остановите контейнер с PostgreSQL (но не удаляйте volumes).
 
-docker pull duskdemon/duskdemon:ver1  
-docker pull duskdemon/duskdemon:ver2  
+Поднимите новый пустой контейнер с PostgreSQL.
 
-#### Задача 3
-В данном задании вы научитесь:
+Восстановите БД test_db в новом контейнере.
 
-* объединять контейнеры в единую сеть
-* исполнять команды "изнутри" контейнера
-
-Для выполнения задания вам нужно:
-
-###### Написать Dockerfile:
-
-* Использовать образ https://hub.docker.com/_/node как базовый
-* Установить необходимые зависимые библиотеки для запуска npm приложения https://github.com/simplicitesoftware/nodejs-demo
-* Выставить у приложения (и контейнера) порт 3000 для прослушки входящих запросов
-* Соберите образ и запустите контейнер в фоновом режиме с публикацией порта
-
-###### Запустить второй контейнер из образа ubuntu:latest
-* Создайть docker network и добавьте в нее оба запущенных контейнера
-* Используя docker exec запустить командную строку контейнера ubuntu в интерактивном режиме
-* Используя утилиту curl вызвать путь / контейнера с npm приложением
-
-Для получения зачета, вам необходимо предоставить:
-
-* Наполнение Dockerfile с npm приложением
-* Скриншот вывода вызова команды списка docker сетей (docker network cli)
-* Скриншот вызова утилиты curl с успешным ответом
-
-**Ответ**
-
-Сначала забираем образ из докер-хаба:
-_docker pull node:latest_
-
-докер-файл для сервера nodejs:
-
+Приведите список операций, который вы применяли для бэкапа данных и восстановления.  
+**Ответ:**
+делаем дамп базы:
 ```
-FROM node
-RUN apt-get update
-RUN git clone https://github.com/simplicitesoftware/nodejs-demo.git
-WORKDIR /nodejs-demo/
-RUN sed -i s/localhost/0.0.0.0/g app.js
-RUN npm install
-CMD npm start
+root@44a279e4af7e:/# pg_dump -U user test_db > /var/lib/postgresql/test_db_dump.sql
+root@44a279e4af7e:/# ls -la /var/lib/postgresql/
+total 16
+drwxr-xr-x  3 postgres postgres 4096 Sep 30 19:02 .
+drwxr-xr-x  1 root     root     4096 Sep 23 23:56 ..
+drwx------ 19 postgres postgres 4096 Sep 30 17:37 data
+-rw-r--r--  1 root     root     3367 Sep 30 19:02 test_db_dump.sql
 ```
-билдим контейнер:
-_docker build -t duskdemon/duskdemon:ver3-njs -f n_njsdemo ._
 
-создаем сетевое пространство:
+поднимаем новый контейнер с postgresql:
+```
+docker run --name=psql-12-2 -ti -e POSTGRES_USER=user -e POSTGRES_PASSWORD=pass -v 6-2-sql-0:/var/lib/postgresql postgres:12
+```
+заходим в контейнер, находим файл дампа базы:
+```
+PS C:\Users\DuskDemon> docker exec -it psql-12-2 bash
+root@d80104bd4825:/# cd /var/lib/postgresql/
+root@d80104bd4825:/var/lib/postgresql# ls -al
+total 16
+drwxr-xr-x  3 postgres postgres 4096 Sep 30 19:02 .
+drwxr-xr-x  1 root     root     4096 Sep 23 23:56 ..
+drwx------ 19 postgres postgres 4096 Sep 30 19:08 data
+-rw-r--r--  1 root     root     3367 Sep 30 19:02 test_db_dump.sql
+```
+делаем восствновление, предварительно создав одноимменную базу:
+```
+root@d80104bd4825:/var/lib/postgresql# psql -U user
+psql (12.8 (Debian 12.8-1.pgdg110+1))
+Type "help" for help.
 
-```
-PS C:\temp> docker network create nodejs-demo
-30139b6f3b56f0a0710f77ee839df429be683e0fe7a0f9ea4dee1ede8668ae72
-PS C:\temp> docker network ls
-NETWORK ID     NAME          DRIVER    SCOPE
-6c6f57a03d4d   bridge        bridge    local
-12bf184dbb17   host          host      local
-30139b6f3b56   nodejs-demo   bridge    local
-dd991d65e8ac   none          null      local
-```
-запускаем сервер:
-_docker run -d -p 3000:3000 --net=nodejs-demo duskdemon/duskdemon:ver3-njs npm start_
+user=# create database test_db;
+CREATE DATABASE
+user=# \q
+root@d80104bd4825:/var/lib/postgresql# psql -U user -d test_db < /var/lib/postgresql/test_db_dump.sql
+SET
+SET
+SET
+SET
+SET
+ set_config
+------------
 
-подключаем в сеть убунту, заходим в контейнер:
-_docker run -it --net=nodejs-demo ubuntu:latest bash_
+(1 row)
 
-внутри выполняем:
-```
-root@6fa2bd9bdfe7:/#apt-get update
-root@6fa2bd9bdfe7:/#apt-get install curl
-root@6fa2bd9bdfe7:/#curl 172.18.0.2:3000
-```
-получаем большую простыню, заканчивающуюся на 
-```
-urient fringilla euismod feugiat</p>","demoPrdBrochure":"10591","demoPrdOnlineDoc":null,"demoPrdComments":null}];
-    var pc = $('#nodejs-demo-products');
-    for (var i = 0; i < ps.length; i++) {
-      var p = ps[i];
-      pc.append(
-        $('<li/>')
-          .append($('<img/>', { title: p.demoPrdReference, src: 'data:' + p.demoPrdPicture.mime + ';base64,' + p.demoPrdPicture.content }))
-          .append($('<h1/>').append(p.demoPrName))
-          .append($('<h2/>').append(p.demoPrdReference))
-          .append($('<p/>').append(p.demoPrdDescription))
-        );
-    }
-});</script></head><body><div id="nodejs-demo"><div class="text-center" id="header"><img src="/logo.svg" alt="Logo"></div><ul id="nodejs-demo-products"></ul><p class="text-right">&copy; Simplict&eacute; Software, powered by&nbsp;<a href="https://expressjs.com" target="_blank">Express</a></p></div></body></html>root@6fa2bd9bdfe7:/#
-```
-ну, то есть, выдача страницы с сервера.
+SET
+SET
+SET
+SET
+SET
+SET
+CREATE TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+CREATE SEQUENCE
+ALTER TABLE
+ALTER SEQUENCE
+ALTER TABLE
+COPY 5
+COPY 5
+ setval
+--------
+      1
+(1 row)
 
-Ссылки на скриншоты:  
-скриншот конфигурации сети докер https://github.com/duskdemon/devops-netology/blob/main/docker_nodejs01.jpg  
-скриншот вывода curl https://github.com/duskdemon/devops-netology/blob/main/ubuntu-nodejs-curl01.jpg  
-Ссылка на докер-файл:  
-**docker pull duskdemon/duskdemon:ver3-njs**
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+ALTER TABLE
+ERROR:  role "test-admin-user" does not exist
+ERROR:  role "test-simple-user" does not exist
+root@d80104bd4825:/var/lib/postgresql# psql -U user
+psql (12.8 (Debian 12.8-1.pgdg110+1))
+Type "help" for help.
+
+user=# \l
+                             List of databases
+   Name    | Owner | Encoding |  Collate   |   Ctype    | Access privileges
+-----------+-------+----------+------------+------------+-------------------
+ postgres  | user  | UTF8     | en_US.utf8 | en_US.utf8 |
+ template0 | user  | UTF8     | en_US.utf8 | en_US.utf8 | =c/user          +
+           |       |          |            |            | user=CTc/user
+ template1 | user  | UTF8     | en_US.utf8 | en_US.utf8 | =c/user          +
+           |       |          |            |            | user=CTc/user
+ test_db   | user  | UTF8     | en_US.utf8 | en_US.utf8 |
+ user      | user  | UTF8     | en_US.utf8 | en_US.utf8 |
+(5 rows)
+
+user=#
+```
