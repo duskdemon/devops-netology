@@ -5,7 +5,11 @@
 Используя docker поднимите инстанс PostgreSQL (версию 12) c 2 volume, 
 в который будут складываться данные БД и бэкапы.
 
+<<<<<<< HEAD
 Приведите получившуюся команду или docker-compose манифест.  
+=======
+Приведите получившуюся команду или docker-compose манифест.
+>>>>>>> 2effcee57c7d2759a08d326184febd346568d82e
 **Ответ:**
 
 Забираем из докер-хаба образ postgresql:  
@@ -50,6 +54,7 @@ postgres:12
 - список пользователей с правами над таблицами test_db  
 
 **Ответ:**  
+<<<<<<< HEAD
 root@44a279e4af7e:/# createuser test-admin-user -U user  
 root@44a279e4af7e:/# createuser test-simple-user -U user  
 root@44a279e4af7e:/# createdb -U user test_db  
@@ -58,12 +63,23 @@ CREATE TABLE orders(
 	id	serial PRIMARY KEY,  
 	ordername	varchar(24) NOT NULL,  
 	price	integer NOT NULL  
+=======
+root@44a279e4af7e:/# createuser test-admin-user -U user
+root@44a279e4af7e:/# createuser test-simple-user -U user
+root@44a279e4af7e:/# createdb -U user test_db
+
+CREATE TABLE orders(
+	id	serial PRIMARY KEY,
+	ordername	varchar(24) NOT NULL,
+	price	integer NOT NULL
+>>>>>>> 2effcee57c7d2759a08d326184febd346568d82e
 	);
 	
 CREATE TABLE clients(
 	id	integer PRIMARY KEY,
 	lastname	varchar(24) NOT NULL,
 	country	varchar(24) NOT NULL,
+<<<<<<< HEAD
     	ord integer REFERENCES orders(id)
 	);
 
@@ -73,6 +89,17 @@ grant all on orders to "test-admin-user";
 grant all on clients to "test-admin-user";  
 grant SELECT,INSERT,UPDATE,DELETE on orders to "test-simple-user";  
 grant SELECT,INSERT,UPDATE,DELETE on clients to "test-simple-user";  
+=======
+    ord integer REFERENCES orders(id)
+	);
+
+CREATE INDEX order_index ON clients (ord);
+
+grant all on orders to "test-admin-user";
+grant all on clients to "test-admin-user";
+grant SELECT,INSERT,UPDATE,DELETE on orders to "test-simple-user";
+grant SELECT,INSERT,UPDATE,DELETE on clients to "test-simple-user";
+>>>>>>> 2effcee57c7d2759a08d326184febd346568d82e
 ```
 test_db=# \l
                              List of databases
@@ -260,7 +287,11 @@ test_db=# select * from clients where ord is not NULL;
 Получите полную информацию по выполнению запроса выдачи всех пользователей из задачи 4 
 (используя директиву EXPLAIN).
 
+<<<<<<< HEAD
 Приведите получившийся результат и объясните что значат полученные значения.  
+=======
+Приведите получившийся результат и объясните что значат полученные значения.
+>>>>>>> 2effcee57c7d2759a08d326184febd346568d82e
 **Ответ:**
 
 ```
@@ -283,7 +314,11 @@ test_db=# explain select * from clients where ord is not null;
 
 Восстановите БД test_db в новом контейнере.
 
+<<<<<<< HEAD
 Приведите список операций, который вы применяли для бэкапа данных и восстановления.  
+=======
+Приведите список операций, который вы применяли для бэкапа данных и восстановления. 
+>>>>>>> 2effcee57c7d2759a08d326184febd346568d82e
 **Ответ:**
 делаем дамп базы:
 ```
