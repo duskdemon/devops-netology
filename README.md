@@ -28,7 +28,7 @@ AWS предоставляет достаточно много бесплатн�
     ```
 1. Создайте, остановите и удалите ec2 инстанс (любой с пометкой `free tier`) через веб интерфейс. 
 
-В виде результата задания приложите вывод команды `aws configure list`.
+В виде результата задания приложите вывод команды `aws configure list`.  
 **Ответ:**  
 После установки CLI (windows), прохождения Basic configure и создания пользователя admin:
 ```
@@ -103,7 +103,7 @@ HOME_URL="https://amazonlinux.com/"
 
 **Ответ:**  
 1. Hashicorp Packer
-2. https://github.com/duskdemon/devops-netology/blob/main/terraform/README.md  
+2. https://github.com/duskdemon/devops-netology/tree/main/terraform  
  Вывод команды terraform plan:  
 ```
 PS C:\users\Dusk\devops-netology\terraform> .\terraform.exe plan -out=terraform-plan-07-2
@@ -232,3 +232,4 @@ Saved the plan to: terraform-plan-07-2
 To perform exactly these actions, run the following command to apply:
     terraform apply "terraform-plan-07-2"
 ```
+

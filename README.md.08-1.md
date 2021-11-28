@@ -35,18 +35,18 @@
 
 ## Ответы:
 
-1. Попробуйте запустить playbook на окружении из `test.yml`, зафиксируйте какое значение имеет факт `some_fact` для указанного хоста при выполнении playbook'a.
+1. Попробуйте запустить playbook на окружении из `test.yml`, зафиксируйте какое значение имеет факт `some_fact` для указанного хоста при выполнении playbook'a.  
 **Ответ:**
 ```yml
 dusk@DUSK-LT:/mnt/c/Users/Dusk/devops-netology-ansible-1$ ansible-playbook site.yml -i inventory/test.yml
 ```
-__some_fact=12__
-2. Найдите файл с переменными (group_vars) в котором задаётся найденное в первом пункте значение и поменяйте его на 'all default fact'.
+__some_fact=12__  
+2. Найдите файл с переменными (group_vars) в котором задаётся найденное в первом пункте значение и поменяйте его на 'all default fact'.  
 **Ответ:**
-dusk@DUSK-LT:/mnt/c/Users/Dusk/devops-netology-ansible-1$ cat group_vars/all/examp.yml 
-`---
-  some_fact: all default fact
-3. Воспользуйтесь подготовленным (используется `docker`) или создайте собственное окружение для проведения дальнейших испытаний.
+dusk@DUSK-LT:/mnt/c/Users/Dusk/devops-netology-ansible-1$ cat group_vars/all/examp.yml  
+`---`  
+  some_fact: all default fact  
+3. Воспользуйтесь подготовленным (используется `docker`) или создайте собственное окружение для проведения дальнейших испытаний.  
 **Ответ:**
 Подготовил 2 хоста в докере:
 ```
@@ -56,7 +56,7 @@ CONTAINER ID   IMAGE               COMMAND       CREATED          STATUS        
 b1ba329298e0   pycontribs/debian   "/bin/bash"   33 seconds ago   Up 31 seconds             debian
 ```
 Поправил файл prod.yml, хосты alpine и debian  
-4. Проведите запуск playbook на окружении из `prod.yml`. Зафиксируйте полученные значения `some_fact` для каждого из `managed host`.
+4. Проведите запуск playbook на окружении из `prod.yml`. Зафиксируйте полученные значения `some_fact` для каждого из `managed host`.  
 **Ответ:**
 ```
 TASK [Print fact] *******************************************************************************
@@ -67,10 +67,10 @@ ok: [debian] => {
     "msg": "deb"
 }
 ```
-5. Добавьте факты в `group_vars` каждой из групп хостов так, чтобы для `some_fact` получились следующие значения: для `deb` - 'deb default fact', для `el` - 'el default fact'.
+5. Добавьте факты в `group_vars` каждой из групп хостов так, чтобы для `some_fact` получились следующие значения: для `deb` - 'deb default fact', для `el` - 'el default fact'.  
 **Ответ:**
 Внес правки в файлы examp.yml  
-6.  Повторите запуск playbook на окружении `prod.yml`. Убедитесь, что выдаются корректные значения для всех хостов.
+6.  Повторите запуск playbook на окружении `prod.yml`. Убедитесь, что выдаются корректные значения для всех хостов.  
 **Ответ:**
 ```
 TASK [Print fact] *******************************************************************************
@@ -81,7 +81,7 @@ ok: [debian] => {
     "msg": "deb default fact"
 }
 ```
-7. При помощи `ansible-vault` зашифруйте факты в `group_vars/deb` и `group_vars/el` с паролем `netology`.
+7. При помощи `ansible-vault` зашифруйте факты в `group_vars/deb` и `group_vars/el` с паролем `netology`.  
 **Ответ:**
 Предварительно создав файл pwsd с паролем внутри, шифруем:
 ```
@@ -104,7 +104,7 @@ secret_fact_el: !vault |
           6362
 Encryption successful
 ```
-8. Запустите playbook на окружении `prod.yml`. При запуске `ansible` должен запросить у вас пароль. Убедитесь в работоспособности.
+8. Запустите playbook на окружении `prod.yml`. При запуске `ansible` должен запросить у вас пароль. Убедитесь в работоспособности.  
 **Ответ:**
 ```
 dusk@DUSK-LT:/mnt/c/Users/Dusk/devops-netology-ansible-1$ ansible-playbook -i inventory/prod.yml site.yml --ask-vault-pass
@@ -140,16 +140,73 @@ PLAY RECAP *********************************************************************
 alpine                     : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
 debian                     : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
 ```
-9. Посмотрите при помощи `ansible-doc` список плагинов для подключения. Выберите подходящий для работы на `control node`.
+9. Посмотрите при помощи `ansible-doc` список плагинов для подключения. Выберите подходящий для работы на `control node`.  
 **Ответ:**
 Смотрим список плагинов и выбираем нужный:
 ```
 dusk@DUSK-LT:/mnt/c/Users/Dusk/devops-netology-ansible-1$ ansible-doc -t connection -l
 ```
+ansible.builtin.winrm для windows  
 
-10. В `prod.yml` добавьте новую группу хостов с именем  `local`, в ней разместите localhost с необходимым типом подключения.
+10. В `prod.yml` добавьте новую группу хостов с именем  `local`, в ней разместите localhost с необходимым типом подключения.  
 **Ответ:**
-11. Запустите playbook на окружении `prod.yml`. При запуске `ansible` должен запросить у вас пароль. Убедитесь что факты `some_fact` для каждого из хостов определены из верных `group_vars`.
+добавил в конец файла __prod.yml__ строки
+```
+  local:
+    hosts:
+      localhost:
+        ansible_connection: local
+```
+11. Запустите playbook на окружении `prod.yml`. При запуске `ansible` должен запросить у вас пароль. Убедитесь что факты `some_fact` для каждого из хостов определены из верных `group_vars`.  
 **Ответ:**
-12. Заполните `README.md` ответами на вопросы. Сделайте `git push` в ветку `master`. В ответе отправьте ссылку на ваш открытый репозиторий с изменённым `playbook` и заполненным `README.md`.
+```
+dusk@DESKTOP-DQUFL9J:/mnt/c/temp/devops-netology-ansible-1$ ansible-playbook -i inventory/prod.yml site.yml --ask-vault-pass
+Vault password: 
+
+PLAY [Print os facts] *******************************************************************************************************************
+
+TASK [Gathering Facts] ******************************************************************************************************************
+[DEPRECATION WARNING]: Distribution Ubuntu 18.04 on host localhost should use /usr/bin/python3, but is using /usr/bin/python for 
+backward compatibility with prior Ansible releases. A future Ansible release will default to using the discovered platform python for 
+this host. See https://docs.ansible.com/ansible/2.9/reference_appendices/interpreter_discovery.html for more information. This feature 
+will be removed in version 2.12. Deprecation warnings can be disabled by setting deprecation_warnings=False in ansible.cfg.
+ok: [localhost]
+[WARNING]: Platform linux on host debian is using the discovered Python interpreter at /usr/bin/python3.7, but future installation of
+another Python interpreter could change this. See https://docs.ansible.com/ansible/2.9/reference_appendices/interpreter_discovery.html
+for more information.
+ok: [debian]
+[WARNING]: Platform linux on host alpine is using the discovered Python interpreter at /usr/bin/python3, but future installation of
+another Python interpreter could change this. See https://docs.ansible.com/ansible/2.9/reference_appendices/interpreter_discovery.html
+for more information.
+ok: [alpine]
+
+TASK [Print OS] *************************************************************************************************************************
+ok: [localhost] => {
+    "msg": "Ubuntu"
+}
+ok: [alpine] => {
+    "msg": "Alpine"
+}
+ok: [debian] => {
+    "msg": "Debian"
+}
+
+TASK [Print fact] ***********************************************************************************************************************
+ok: [localhost] => {
+    "msg": "all default fact"
+}
+ok: [alpine] => {
+    "msg": "el default fact"
+}
+ok: [debian] => {
+    "msg": "deb default fact"
+}
+
+PLAY RECAP ******************************************************************************************************************************
+alpine                     : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+debian                     : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+localhost                  : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+12. Заполните `README.md` ответами на вопросы. Сделайте `git push` в ветку `master`. В ответе отправьте ссылку на ваш открытый репозиторий с изменённым `playbook` и заполненным `README.md`.  
 **Ответ:**
+https://github.com/duskdemon/devops-netology-ansible-1/blob/main/README.md
